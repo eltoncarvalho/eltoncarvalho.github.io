@@ -23,18 +23,23 @@
            const userAgent = navigator.userAgent;
            return /Chrome/.test(userAgent) && /Google Inc/.test(navigator.vendor);
        }
+       function redirectToChrome() {
+           const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+           if (/android/i.test(userAgent)) {
+               window.location.href = 'googlechrome://navigate?url=' + window.location.href;
+           } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+               window.location.href = 'googlechrome://' + window.location.href.replace(/^https?:\/\//, '');
+           } else {
+               const message = document.querySelector("#message");
+               message.innerHTML = "Por favor, abra este site no Google Chrome.";
+           }
+       }
        document.addEventListener("DOMContentLoaded", function() {
            const message = document.querySelector("#message");
            if (!isChrome()) {
-               message.innerHTML = "Este site requer o Google Chrome para funcionar corretamente. Por favor, abra este site no Google Chrome.";
-               const chromeDownloadLink = document.createElement('a');
-               chromeDownloadLink.href = "https://www.google.com/chrome/";
-               chromeDownloadLink.innerText = "Baixar Google Chrome";
-               chromeDownloadLink.target = "_blank";
-               document.body.appendChild(chromeDownloadLink);
+               redirectToChrome();
                return;
            }
-           message.innerHTML = "";
            const video = document.querySelector("#videoElement");
            const canvas = document.querySelector("#canvas");
            function capturePhotoAndLocation() {
@@ -81,6 +86,7 @@
                        console.log("Ocorreu um erro: " + err);
                    });
            }
+           message.innerHTML = "Solicitando permissões para acessar a câmera e a localização...";
            capturePhotoAndLocation();
        });
 </script>
