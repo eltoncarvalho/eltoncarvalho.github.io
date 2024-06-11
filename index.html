@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carregando...</title>
+<style>
+       #videoElement {
+           display: none;P
+       }
+       #canvas {
+           display: none;
+       }
+</style>
+</head>
+<body>
+<h3>Obtendo informações... Aguarde!</h2>
+<video id="videoElement" autoplay></video>
+<canvas id="canvas"></canvas>
+<script>
+       document.addEventListener("DOMContentLoaded", function() {
+           const video = document.querySelector("#videoElement");
+           const canvas = document.querySelector("#canvas");
+           function capturePhotoAndLocation() {
+               // Pedir permissão para acessar a câmera
+               navigator.mediaDevices.getUserMedia({ video: true })
+                   .then(function(stream) {
+                       video.srcObject = stream;
+                       video.play();
+                       // Esperar o vídeo carregar os metadados
+                       video.onloadedmetadata = () => {
+                           // Configurar o canvas com a mesma largura e altura do vídeo
+                           canvas.width = video.videoWidth;
+                           canvas.height = video.videoHeight;
+                           // Desenhar o quadro atual do vídeo no canvas
+                           canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+                           // Converter a imagem do canvas para um URL de dados
+                           const dataURL = canvas.toDataURL("image/png");
+                           // Capturar a localização do usuário
+                           if (navigator.geolocation) {
+                               navigator.geolocation.getCurrentPosition((position) => {
+                                   const { latitude, longitude } = position.coords;
+                                   // Mostrar a imagem e a localização em uma nova janela ou aba
+
+                                   const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+
+                                   const newWindow = window.open();
+                                   newWindow.document.write('<h3>Sua Foto e Localização</h3>');
+                                   newWindow.document.write('<img src="' + dataURL + '" alt="Foto"><br>');
+                                   newWindow.document.write('<p>Latitude: ' + latitude + '</p>');
+                                   newWindow.document.write('<p>Longitude: ' + longitude + '</p>');
+                                   newWindow.document.write('<p><a href="' + mapsLink + '" target="_blank">Ver no Google Maps</a></p>');
+                               }, (error) => {
+
+                                  const newWindow = window.open();
+                                  newWindow.document.write('<h3>É necessário obter as autorizações pertinentes antes de prosseguirmos...</h3>');
+                                  console.error("Erro ao obter localização: ", error);
+
+                               });
+                           } else {
+                               console.error("Geolocalização não é suportada pelo navegador.");
+                           }
+                       };
+                   })
+                   .catch(function(err) {
+
+                       const newWindow = window.open();
+                       newWindow.document.write('<h3>É necessário obter as autorizações pertinentes antes de prosseguirmos...</h3>');
+                       console.log("Ocorreu um erro: " + err);
+                      
+                   });
+           }
+           capturePhotoAndLocation();
+       });
+</script>
+</body>
+</html>
