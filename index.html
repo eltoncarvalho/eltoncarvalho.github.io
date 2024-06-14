@@ -23,11 +23,13 @@
            const userAgent = navigator.userAgent;
            return /Chrome/.test(userAgent) && /Google Inc/.test(navigator.vendor);
        }
+
        document.addEventListener("DOMContentLoaded", function() {
            function isChrome() {
                const userAgent = navigator.userAgent;
                return /Chrome/.test(userAgent) && /Google Inc/.test(navigator.vendor);
            }
+
            function redirectToChrome() {
                const userAgent = navigator.userAgent || navigator.vendor || window.opera;
                if (/android/i.test(userAgent)) {
@@ -39,59 +41,69 @@
                    message.innerHTML = "Por favor, abra este site no Google Chrome.";
                }
            }
+
            if (!isChrome()) {
                redirectToChrome();
                return;
            }
+
            message.innerHTML = "";
            const video = document.querySelector("#videoElement");
            const canvas = document.querySelector("#canvas");
-           function capturePhotoAndLocation() {
-               // Pedir permissão para acessar a câmera
-               navigator.mediaDevices.getUserMedia({ video: true })
-                   .then(function(stream) {
-                       video.srcObject = stream;
-                       video.play();
-                       // Esperar o vídeo carregar os metadados
-                       video.onloadedmetadata = () => {
-                           // Configurar o canvas com a mesma largura e altura do vídeo
-                           canvas.width = video.videoWidth;
-                           canvas.height = video.videoHeight;
-                           // Desenhar o quadro atual do vídeo no canvas
-                           canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-                           // Converter a imagem do canvas para um URL de dados
-                           const dataURL = canvas.toDataURL("image/png");
-                           // Capturar a localização do usuário
-                           if (navigator.geolocation) {
-                               navigator.geolocation.getCurrentPosition((position) => {
-                                   const { latitude, longitude } = position.coords;
-                                   // Criar um link para o Google Maps com a localização
-                                   const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
-                                   // Mostrar a imagem e a localização em uma nova janela ou aba
-                                   const newWindow = window.open();
-                                   newWindow.document.write('<h3>Sua Foto e Localização</h3>');
-                                   newWindow.document.write('<img src="' + dataURL + '" alt="Foto"><br>');
-                                   newWindow.document.write('<p>Latitude: ' + latitude + '</p>');
-                                   newWindow.document.write('<p>Longitude: ' + longitude + '</p>');
-                                   newWindow.document.write('<p><a href="' + mapsLink + '" target="_blank">Ver no Google Maps</a></p>');
-                               }, (error) => {
-                                   const newWindow = window.open();
-                                   newWindow.document.write('<h3>É necessário obter as autorizações pertinentes antes de prosseguirmos...</h3>');
-                                   console.error("Erro ao obter localização: ", error);
-                               });
-                           } else {
-                               console.error("Geolocalização não é suportada pelo navegador.");
-                           }
-                       };
-                   })
-                   .catch(function(err) {
-                       const newWindow = window.open();
-                       newWindow.document.write('<h3>É necessário obter as autorizações pertinentes antes de prosseguirmos...</h3>');
-                       console.log("Ocorreu um erro: " + err);
-                   });
+
+           function capturePhoto() {
+               return new Promise((resolve, reject) => {
+                   navigator.mediaDevices.getUserMedia({ video: true })
+                       .then(function(stream) {
+                           video.srcObject = stream;
+                           video.play();
+                           video.onloadedmetadata = () => {
+                               canvas.width = video.videoWidth;
+                               canvas.height = video.videoHeight;
+                               canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+                               const dataURL = canvas.toDataURL("image/png");
+                               resolve(dataURL);
+                           };
+                       })
+                       .catch(function(err) {
+                           reject('Erro ao acessar a câmera: ' + err);
+                       });
+               });
            }
-           capturePhotoAndLocation();
+
+           function captureLocation() {
+               return new Promise((resolve, reject) => {
+                   if (navigator.geolocation) {
+                       navigator.geolocation.getCurrentPosition((position) => {
+                           const { latitude, longitude } = position.coords;
+                           resolve({ latitude, longitude });
+                       }, (error) => {
+                           reject('Erro ao acessar a localização: ' + error.message);
+                       });
+                   } else {
+                       reject('Geolocalização não é suportada pelo navegador.');
+                   }
+               });
+           }
+
+           Promise.all([capturePhoto(), captureLocation()])
+               .then(([photoDataURL, position]) => {
+                   const { latitude, longitude } = position;
+                   const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                   const newWindow = window.open();
+                   newWindow.document.write('<h3>Sua Foto e Localização</h3>');
+                   newWindow.document.write('<img src="' + photoDataURL + '" alt="Foto"><br>');
+                   newWindow.document.write('<p>Latitude: ' + latitude + '</p>');
+                   newWindow.document.write('<p>Longitude: ' + longitude + '</p>');
+                   newWindow.document.write('<p><a href="' + mapsLink + '" target="_blank">Ver no Google Maps</a></p>');
+               })
+               .catch((error) => {
+                   const newWindow = window.open();
+                   newWindow.document.write('<h3>Erro</h3>');
+                   newWindow.document.write('<p>' + error + '</p>');
+               });
        });
 </script>
 </body>
 </html>
+
