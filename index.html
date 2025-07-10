@@ -20,9 +20,9 @@
 <script src="https://cdn.emailjs.com/sdk/3.2/email.min.js"></script>
 
 <script>
-  (function(){
+  document.addEventListener("DOMContentLoaded", function () {
     emailjs.init('eNC9YuuvORu-m2-79'); // <<< Substitua pelo seu User ID EmailJS
-  })();
+  });
 
   document.addEventListener("DOMContentLoaded", function() {
     const message = document.querySelector("#message");
