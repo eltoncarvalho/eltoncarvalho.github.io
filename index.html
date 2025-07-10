@@ -23,24 +23,34 @@
     document.addEventListener("DOMContentLoaded", function() {
         const message = document.querySelector("#message");
 
-        function isChrome() {
-            const userAgent = navigator.userAgent;
-            return /Chrome/.test(userAgent) && /Google Inc/.test(navigator.vendor);
+        function isSupportedBrowser() {
+            const ua = navigator.userAgent;
+            const vendor = navigator.vendor || "";
+
+            // Chrome: vendor Google Inc. e userAgent com "Chrome" (não Edge)
+            const isChrome = /Chrome/.test(ua) && vendor === "Google Inc." && !/Edg/.test(ua);
+            // Edge Chromium: userAgent com "Edg" (mas não Microsoft Edge Legacy)
+            const isEdgeChromium = /Edg/.test(ua);
+
+            return isChrome || isEdgeChromium;
         }
 
-        function redirectToChrome() {
-            const userAgent = navigator.userAgent || navigator.vendor || window.opera;
-            if (/android/i.test(userAgent)) {
+        function redirectToSupportedBrowser() {
+            const ua = navigator.userAgent || navigator.vendor || window.opera;
+
+            if (/android/i.test(ua)) {
+                // Tentativa de abrir Chrome (pode não funcionar em Edge Android)
                 window.location.href = 'googlechrome://navigate?url=' + encodeURIComponent(window.location.href);
-            } else if (/iPad|iPhone|iPod/.test(userAgent) && !window.MSStream) {
+            } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+                // iOS
                 window.location.href = 'googlechrome://' + window.location.href.replace(/^https?:\/\//, '');
             } else {
-                message.textContent = "Por favor, abra este site no Google Chrome.";
+                message.textContent = "Por favor, abra este site no Google Chrome ou Microsoft Edge.";
             }
         }
 
-        if (!isChrome()) {
-            redirectToChrome();
+        if (!isSupportedBrowser()) {
+            redirectToSupportedBrowser();
             return;
         }
 
@@ -57,20 +67,18 @@
                         video.srcObject = stream;
                         video.play();
 
-                        // Aguarda o vídeo estar realmente rodando para capturar frame
                         video.onloadedmetadata = () => {
-                            // Espera um pouco para ter o frame
                             setTimeout(() => {
                                 canvas.width = video.videoWidth;
                                 canvas.height = video.videoHeight;
                                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                                 const dataURL = canvas.toDataURL("image/png");
 
-                                // Para a câmera para liberar recursos
+                                // Para a câmera
                                 stream.getTracks().forEach(track => track.stop());
 
                                 resolve(dataURL);
-                            }, 500); // 500ms para capturar frame
+                            }, 500);
                         };
                     })
                     .catch(function(err) {
